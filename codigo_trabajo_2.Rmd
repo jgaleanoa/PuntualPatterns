@@ -1,0 +1,72 @@
+---
+title: "Trabajo 2 grupo 1"
+author: "German Patiño"
+date: '2022-06-02'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+instalando librerias por si no carga 'rgeoboundaries'
+```{r}
+#install.packages("remotes")
+#remotes::install_gitlab("dickoa/rgeoboundaries")
+```
+
+
+librerias 
+
+```{r}
+library(spatstat)
+library(maptools)
+library(rgeos)
+library(mapview) # graficando mapas
+library(sf)
+library(GISTools)
+library(rgl)
+library(raster)
+library(rgeoboundaries) # poligonos de ciudades
+library(dplyr) # paquete de filtros
+library(lubridate) # transformacion fechas
+library(tmaptools) # 
+library(tidygeocoder)  # direccion a lat long
+```
+
+
+ 
+
+```{r}
+accidentalidad_19_21<-read.csv("Accidentalidad_en_Barranquilla_2019_.csv")
+```
+
+2238 direcciones no las mando a lat long
+
+```{r}
+dir_na<-is.na(accidentalidad_19_21$lat)
+table(dir_na)
+
+```
+
+ensayar con otros metodos
+
+```{r}
+coordenadas<-tidygeocoder::geo(accidentalidad_19_21$SITIO_EXACTO_ACCIDENTE[dir_na],method = "osm")
+?geo
+```
+
+Mapa de Barranquilla "Juan Sebastian"
+
+```{r}
+bqlla <- geoboundaries(country = 'COLOMBIA', adm_lvl = 2)%>%
+ filter(shapeName == 'DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*')
+```
+
+plot inicial  (problemas)
+
+```{r}
+plot(bqlla$geometry)
+points(accidentalidad_19_21$long,accidentalidad_19_21$lat)
+```
+
