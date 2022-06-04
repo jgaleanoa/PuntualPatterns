@@ -38,7 +38,7 @@ library(tidygeocoder)  # direccion a lat long
  
 
 ```{r}
-accidentalidad_19_21<-read.csv("Accidentalidad_en_Barranquilla_2019_.csv")
+accidentalidad_19_21<-read.csv("Accidentalidad_en_Barranquilla_2019_.csv", check.names = F, encoding = "UTF-8")
 ```
 
 2238 direcciones no las mando a lat long
@@ -52,7 +52,9 @@ table(dir_na)
 ensayar con otros metodos
 
 ```{r}
-coordenadas<-tidygeocoder::geo(accidentalidad_19_21$SITIO_EXACTO_ACCIDENTE[dir_na],method = "osm")
+# coordenadas<-tidygeocoder::geo(accidentalidad_19_21$SITIO_EXACTO_ACCIDENTE[dir_na],method = "osm")
+# saveRDS(coordenadas, "coordenadas.Rds")
+coordenadas <- readRDS("coordenadas.Rds")
 ?geo
 ```
 
