@@ -1,0 +1,75 @@
+---
+title: "Patrones puntuales"
+author: "Juan Sebastián Mendoza Páez"
+date: '2022-06-05'
+output:
+  html_document:
+    code_folding: hide
+    theme: readable
+    toc: true
+    toc_float: true
+    df_print: table
+---
+
+```{r}
+library(RSocrata)
+library(tidyverse)
+library(lubridate)
+library(tidygeocoder)
+library(rgeoboundaries)
+library(sf)
+library(tmap)
+```
+
+
+# Obtención de la base de datos
+
+```{r}
+accidentes <- read.socrata("https://www.datos.gov.co/resource/yb9r-2dsi.json") %>%
+    mutate(fecha = ymd(fecha_accidente)) %>%
+    select(12, 6:8) %>%
+    filter(year(fecha) > 2018 & year(fecha) < 2022)
+```
+
+
+# Geocodificación de las direcciones
+
+```{r eval=FALSE, include=TRUE}
+direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
+localizaciones <- geo(address = direcciones, method = "arcgis")
+write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
+```
+
+
+# 
+
+```{r}
+coordenadas <- read.csv("accidentes.csv")
+coordenadas <- cbind(accidentes, coordenadas[,2:3])%>%
+                st_as_sf(coords = c('long', 'lat'))%>%
+                st_set_crs(value = 4326)
+
+accidentes <- list()
+for(i in 2019:2021){
+  accidentes[[as.character(i)]] <- filter(coordenadas, year(fecha) == i & month(fecha) > 3)
+}
+```
+
+
+# Área de estudio y gráfico de las localizaciones
+
+```{r message=FALSE, warning=FALSE}
+
+bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
+    filter(shapeName == "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*")
+
+tmap_mode('view')
+
+tm_shape(bqlla)+
+  tm_polygons(alpha = 0.3, border.alpha = 0.7)+
+  tm_shape(shp = accidentes[['2019']])+
+  tm_dots(size = 0.01)
+```
+
+
+
