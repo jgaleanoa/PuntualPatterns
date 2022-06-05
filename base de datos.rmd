@@ -6,12 +6,9 @@ output:
   html_document:
     code_folding: hide
     theme: readable
-    toc: true
-    toc_float: true
-    df_print: table
 ---
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 library(RSocrata)
 library(tidyverse)
 library(lubridate)
@@ -19,6 +16,7 @@ library(tidygeocoder)
 library(rgeoboundaries)
 library(sf)
 library(tmap)
+library(spatstat)
 ```
 
 
@@ -41,13 +39,19 @@ write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 ```
 
 
-# 
+# Área de estudio y base de datos final
 
-```{r}
+```{r message=FALSE, warning=FALSE}
+bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
+    filter(shapeName == "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*")%>%
+    st_transform(crs = 3857)
+
 coordenadas <- read.csv("accidentes.csv")
 coordenadas <- cbind(accidentes, coordenadas[,2:3])%>%
                 st_as_sf(coords = c('long', 'lat'))%>%
-                st_set_crs(value = 4326)
+                st_set_crs(value = 4326)%>%
+                st_transform(crs = 3857)%>%
+                st_intersection(bqlla)
 
 accidentes <- list()
 for(i in 2019:2021){
@@ -56,13 +60,9 @@ for(i in 2019:2021){
 ```
 
 
-# Área de estudio y gráfico de las localizaciones
+# Gráfico de las localizaciones
 
-```{r message=FALSE, warning=FALSE}
-
-bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
-    filter(shapeName == "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*")
-
+```{r message=FALSE, warning=FALSE, fig.align='center'}
 tmap_mode('view')
 
 tm_shape(bqlla)+
@@ -71,5 +71,14 @@ tm_shape(bqlla)+
   tm_dots(size = 0.01)
 ```
 
+# Prueba de aleatoriedad espacial completa
+
+```{r message=FALSE, warning=FALSE}
+datos <- ppp(x = st_coordinates(accidentes[[1]])[,1],
+             y = st_coordinates(accidentes[[1]])[,2],
+             window = as.owin(W = bqlla))
+
+plot(datos, axes = T, main = 'Accidentes en Barranquilla durante el 2019')
+```
 
 
