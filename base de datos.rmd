@@ -17,6 +17,7 @@ library(rgeoboundaries)
 library(sf)
 library(tmap)
 library(spatstat)
+source("Funciones_propias_ppp.R", encoding = "UTF-8")
 ```
 
 
@@ -33,9 +34,9 @@ accidentes <- read.socrata("https://www.datos.gov.co/resource/yb9r-2dsi.json") %
 # Geocodificación de las direcciones
 
 ```{r eval=FALSE, include=TRUE}
-direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
-localizaciones <- geo(address = direcciones, method = "arcgis")
-write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
+# direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
+# localizaciones <- geo(address = direcciones, method = "arcgis")
+# write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 ```
 
 
@@ -71,14 +72,106 @@ tm_shape(bqlla)+
   tm_dots(size = 0.01)
 ```
 
-# Prueba de aleatoriedad espacial completa
+# Prueba de aleatoriedad espacial completa {.tabset .tabset-fade .tabset-pills}
 
-```{r message=FALSE, warning=FALSE}
-datos <- ppp(x = st_coordinates(accidentes[[1]])[,1],
-             y = st_coordinates(accidentes[[1]])[,2],
+```{r message=FALSE, warning=FALSE, fig.height=8}
+# Guardando datos por anio
+datos_2019 <- ppp(x = st_coordinates(accidentes[[1]])[, 1],
+             y = st_coordinates(accidentes[[1]])[, 2],
              window = as.owin(W = bqlla))
 
-plot(datos, axes = T, main = 'Accidentes en Barranquilla durante el 2019')
+datos_2020 <- ppp(x = st_coordinates(accidentes[[2]])[, 1],
+             y = st_coordinates(accidentes[[2]])[, 2],
+             window = as.owin(W = bqlla))
+
+datos_2021 <- ppp(x = st_coordinates(accidentes[[3]])[, 1],
+             y = st_coordinates(accidentes[[3]])[, 2],
+             window = as.owin(W = bqlla))
+```
+
+## Accidentes 2019
+
+```{r}
+# Graficando accidentes por anio
+plot(datos_2019, axes = T, 
+     main = 'Accidentes en Barranquilla durante el 2019')
+```
+
+## Accidentes 2020
+
+```{r}
+plot(datos_2020, axes = T, 
+     main = 'Accidentes en Barranquilla durante el 2019')
+```
+
+## Accidentes 2021
+
+```{r}
+plot(datos_2021, axes = T, 
+     main = 'Accidentes en Barranquilla durante el 2019')
+```
+
+# Pruebas de homogeneidad en la intensidad
+
+## Argumento gráfico {.tabset .tabset-fade .tabset-pills}
+
+### Conteos 2019
+
+```{r}
+qc_2019 <- quadratcount(datos_2019, nx = 5, ny = 5)
+plot(qc_2019)
+```
+
+### Conteos 2020
+
+```{r}
+qc_2020 <- quadratcount(datos_2020, nx = 5, ny = 5)
+plot(qc_2020)
+```
+
+### Conteos 2021
+
+```{r}
+qc_2021 <- quadratcount(datos_2021, nx = 5, ny = 5)
+plot(qc_2021)
+```
+## Pruebas $\chi^2$ {.tabset .tabset-fade .tabset-pills}
+
+### Accidentes en 2019
+
+```{r warning = F}
+quadrat.test(qc_2019)
 ```
 
 
+### Accidentes en 2020
+
+```{r warning = F}
+quadrat.test(qc_2020)
+```
+
+### Accidentes en 2021
+
+```{r warning = F}
+quadrat.test(qc_2021)
+```
+
+# Mapas de probabilidad {.tabset .tabset-fade .tabset-pills}
+
+## Año 2019
+
+```{r}
+graph_ppp(datos_2019, 350, "Año 2019")
+```
+
+## Año 2020
+
+```{r}
+graph_ppp(datos_2020, 350, "Año 2020")
+```
+
+## Año 2021
+
+```{r}
+graph_ppp(datos_2021, 350, "Año 2021")
+```

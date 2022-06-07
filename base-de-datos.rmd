@@ -1,0 +1,182 @@
+---
+title: "Patrones puntuales"
+author: 
+  - "Juan José Galeano Arenas"
+  - "Juan Sebastián Mendoza Páez"
+  - "Germán Alonso Patiño Hurtado"
+date: '2022-06-05'
+output:
+  html_document:
+    code_folding: hide
+    theme: readable
+---
+
+```{r message=FALSE, warning=FALSE}
+library(RSocrata)
+library(tidyverse)
+library(lubridate)
+library(tidygeocoder)
+library(rgeoboundaries)
+library(sf)
+library(tmap)
+library(spatstat)
+source("Funciones_propias_ppp.R", encoding = "UTF-8")
+```
+
+# Obtención de la base de datos
+
+
+
+```{r}
+accidentes <- read.socrata("https://www.datos.gov.co/resource/yb9r-2dsi.json") %>%
+    mutate(fecha = ymd(fecha_accidente)) %>%
+    select(12, 6:8) %>%
+    filter(year(fecha) > 2018 & year(fecha) < 2022)
+```
+
+
+# Geocodificación de las direcciones
+
+```{r eval=FALSE, include=TRUE}
+# direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
+# localizaciones <- geo(address = direcciones, method = "arcgis")
+# write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
+```
+
+
+# Área de estudio y base de datos final 
+
+```{r message=FALSE, warning=FALSE}
+bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
+    filter(shapeName == "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*")%>%
+    st_transform(crs = 3857)
+
+coordenadas <- read.csv("accidentes.csv")
+coordenadas <- cbind(accidentes, coordenadas[,2:3])%>%
+                st_as_sf(coords = c('long', 'lat'))%>%
+                st_set_crs(value = 4326)%>%
+                st_transform(crs = 3857)%>%
+                st_intersection(bqlla)
+
+accidentes <- list()
+for(i in 2019:2021){
+  accidentes[[as.character(i)]] <- filter(coordenadas, year(fecha) == i & month(fecha) > 3)
+}
+```
+
+
+# Gráfico de las localizaciones {.tabset .tabset-fade .tabset-pills}
+
+## Accidentes 2019
+
+```{r message=FALSE, warning=FALSE, fig.align='center'}
+tmap_mode('view')
+
+tm_shape(bqlla)+
+  tm_polygons(alpha = 0.3, border.alpha = 0.7)+
+  tm_shape(shp = accidentes[['2019']])+
+  tm_dots(size = 0.01)
+```
+
+## Accidentes 2020
+
+```{r message=FALSE, warning=FALSE, fig.align='center'}
+tmap_mode('view')
+
+tm_shape(bqlla)+
+  tm_polygons(alpha = 0.3, border.alpha = 0.7)+
+  tm_shape(shp = accidentes[['2020']])+
+  tm_dots(size = 0.01)
+```
+
+## Accidentes 2021
+
+```{r message=FALSE, warning=FALSE, fig.align='center'}
+tmap_mode('view')
+
+tm_shape(bqlla)+
+  tm_polygons(alpha = 0.3, border.alpha = 0.7)+
+  tm_shape(shp = accidentes[['2021']])+
+  tm_dots(size = 0.01)
+```
+
+# Pruebas de homogeneidad en la intensidad
+
+```{r message=FALSE, warning=FALSE, fig.height=8}
+# Guardando datos por anio
+datos_2019 <- ppp(x = st_coordinates(accidentes[[1]])[, 1],
+             y = st_coordinates(accidentes[[1]])[, 2],
+             window = as.owin(W = bqlla))
+
+datos_2020 <- ppp(x = st_coordinates(accidentes[[2]])[, 1],
+             y = st_coordinates(accidentes[[2]])[, 2],
+             window = as.owin(W = bqlla))
+
+datos_2021 <- ppp(x = st_coordinates(accidentes[[3]])[, 1],
+             y = st_coordinates(accidentes[[3]])[, 2],
+             window = as.owin(W = bqlla))
+```
+
+## Argumento gráfico {.tabset .tabset-fade .tabset-pills}
+
+### Conteos 2019
+
+```{r}
+qc_2019 <- quadratcount(datos_2019, nx = 5, ny = 5)
+plot(qc_2019)
+```
+
+### Conteos 2020
+
+```{r}
+qc_2020 <- quadratcount(datos_2020, nx = 5, ny = 5)
+plot(qc_2020)
+```
+
+### Conteos 2021
+
+```{r}
+qc_2021 <- quadratcount(datos_2021, nx = 5, ny = 5)
+plot(qc_2021)
+```
+
+## Pruebas $\chi^2$ {.tabset .tabset-fade .tabset-pills}
+
+### Accidentes en 2019
+
+```{r warning = F}
+quadrat.test(qc_2019)
+```
+
+
+### Accidentes en 2020
+
+```{r warning = F}
+quadrat.test(qc_2020)
+```
+
+### Accidentes en 2021
+
+```{r warning = F}
+quadrat.test(qc_2021)
+```
+
+# Mapas de probabilidad {.tabset .tabset-fade .tabset-pills}
+
+## Año 2019
+
+```{r}
+graph_ppp(datos_2019, 350, "Año 2019")
+```
+
+## Año 2020
+
+```{r}
+graph_ppp(datos_2020, 350, "Año 2020")
+```
+
+## Año 2021
+
+```{r}
+graph_ppp(datos_2021, 350, "Año 2021")
+```
