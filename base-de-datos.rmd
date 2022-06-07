@@ -23,26 +23,41 @@ library(spatstat)
 source("Funciones_propias_ppp.R", encoding = "UTF-8")
 ```
 
+# Contextualización
+
+La accidentalidad es uno de los problemas más comunes en el planeta provocando perdidas que pueden ir desde materiales hasta la vida misma, por lo que es de particular interés tratar de comprender como se comporta este fenómeno para evitar ser victimas de él. 
+
+La problemática en cuestión tiene la complicación de ser algo de naturaleza aleatoria, sin embargo esto no quiere decir que no exista alguna forma de controlarla pues la experiencia ha mostrado que las diferentes ciudades tienen lugares con mayor concentración de accidentes que otras ubicaciones dentro de la misma ciudad.
+
+Debido a que se está trabajando la ocurrencia de accidentes en una ciudad de interés, la distribución Poisson y los procesos puntuales Poisson resultan ser una herramienta adecuada para tratar de explicar el fenómeno.
+
+El estudio de accidentalidad se hará en los años 2019, 2020 y 2021 con el propósito de ver como se comporta la accidentalidad prepandemia, pandemia y postpandemia.
+
 # Obtención de la base de datos
 
+Una vez presentado el fenómeno que se trabajará, se selecciona la ciudad de Barranquilla para realizar el estudio. 
 
+Los datos se extrajeron de la página web GOV.CO la cual tiene diferentes bases da datos de Colombia abiertas al público. (<a href="https://www.datos.gov.co/Transporte/Accidentalidad-en-Barranquilla/yb9r-2dsi/data"> Accidentalidad en Barranquilla</a>). La base de datos contiene una gran cantidad de variables, sin embargo solo se escogen aquellas de interés para el patrón puntual. La estructura de los datos es presentada a continuación:
 
 ```{r}
 accidentes <- read.socrata("https://www.datos.gov.co/resource/yb9r-2dsi.json") %>%
     mutate(fecha = ymd(fecha_accidente)) %>%
     select(12, 6:8) %>%
     filter(year(fecha) > 2018 & year(fecha) < 2022)
+knitr::kable(head(accidentes, 10),
+             col.names = c("Fecha", "Gravedad del accidentes",
+                           "Clase de accidentes", "Sitio accidente"))
 ```
-
 
 # Geocodificación de las direcciones
 
-```{r eval=FALSE, include=TRUE}
-# direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
-# localizaciones <- geo(address = direcciones, method = "arcgis")
-# write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
-```
+Se hace necesario realizarle unos ajustes a la base de datos considerada puesto que está no incluye las ubicaciones exactas de los accidentes ya sea en longitud - latitud o proyección UTM, para dicho propósito se usa la función `geo()` del paquete `tidygeocoder` para las direcciones de los accidentes en coordenadas de longitud - latitud. 
 
+```{r eval=FALSE, include=TRUE}
+direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
+localizaciones <- geo(address = direcciones, method = "arcgis")
+write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
+```
 
 # Área de estudio y base de datos final 
 
@@ -52,10 +67,10 @@ bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
     st_transform(crs = 3857)
 
 coordenadas <- read.csv("accidentes.csv")
-coordenadas <- cbind(accidentes, coordenadas[,2:3])%>%
-                st_as_sf(coords = c('long', 'lat'))%>%
-                st_set_crs(value = 4326)%>%
-                st_transform(crs = 3857)%>%
+coordenadas <- cbind(accidentes, coordenadas[, 2:3]) %>%
+                st_as_sf(coords = c('long', 'lat')) %>%
+                st_set_crs(value = 4326) %>%
+                st_transform(crs = 3857) %>%
                 st_intersection(bqlla)
 
 accidentes <- list()
@@ -63,7 +78,6 @@ for(i in 2019:2021){
   accidentes[[as.character(i)]] <- filter(coordenadas, year(fecha) == i & month(fecha) > 3)
 }
 ```
-
 
 # Gráfico de las localizaciones {.tabset .tabset-fade .tabset-pills}
 
@@ -101,6 +115,8 @@ tm_shape(bqlla)+
 ```
 
 # Pruebas de homogeneidad en la intensidad
+
+Uno de los parámetros críticos al momento de modelar un parón puntual es la intensidad la cual puede ser constante (homogenea) o variable (inhomogenea), por lo tanto es importante iniciar el análisis con una prueba de homogeneidad de la intensidad.
 
 ```{r message=FALSE, warning=FALSE, fig.height=8}
 # Guardando datos por anio
