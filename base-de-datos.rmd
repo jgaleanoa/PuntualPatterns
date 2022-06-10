@@ -51,7 +51,7 @@ knitr::kable(head(accidentes, 10),
 
 # Geocodificación de las direcciones
 
-Se hace necesario realizarle unos ajustes a la base de datos considerada puesto que está no incluye las ubicaciones exactas de los accidentes ya sea en longitud - latitud o proyección UTM, para dicho propósito se usa la función `geo()` del paquete `tidygeocoder` para las direcciones de los accidentes en coordenadas de longitud - latitud. 
+Se hace necesario realizarle unos ajustes a la base de datos considerada puesto que está no incluye las ubicaciones exactas de los accidentes ya sea en longitud - latitud o proyección UTM, para dicho propósito se usa la función `geo()` del paquete `tidygeocoder` para convertir las direcciones de los accidentes en coordenadas de longitud - latitud. 
 
 ```{r eval=FALSE, include=TRUE}
 direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
@@ -59,7 +59,7 @@ localizaciones <- geo(address = direcciones, method = "arcgis")
 write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 ```
 
-# Área de estudio y base de datos final 
+Luego de realizar obtener las coordenadas en longitud - latitud, se usan múltiples funciones del paquete `sf` para obtener las respectivas ubicaciones en formato UTM obteniendose lo siguiente:
 
 ```{r message=FALSE, warning=FALSE}
 bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
@@ -77,6 +77,7 @@ accidentes <- list()
 for(i in 2019:2021){
   accidentes[[as.character(i)]] <- filter(coordenadas, year(fecha) == i & month(fecha) > 3)
 }
+knitr::kable(head(accidentes[["2019"]][, c(1:4, 10)], 10))
 ```
 
 # Gráfico de las localizaciones {.tabset .tabset-fade .tabset-pills}
@@ -116,7 +117,7 @@ tm_shape(bqlla)+
 
 # Pruebas de homogeneidad en la intensidad
 
-Uno de los parámetros críticos al momento de modelar un parón puntual es la intensidad la cual puede ser constante (homogenea) o variable (inhomogenea), por lo tanto es importante iniciar el análisis con una prueba de homogeneidad de la intensidad.
+Uno de los parámetros críticos al momento de modelar un patrón puntual es la intensidad la cual puede ser constante (homogénea) o variable (inhomogénea), por lo tanto es importante iniciar el análisis con una prueba de homogeneidad de la intensidad.
 
 ```{r message=FALSE, warning=FALSE, fig.height=8}
 # Guardando datos por anio
@@ -135,28 +136,44 @@ datos_2021 <- ppp(x = st_coordinates(accidentes[[3]])[, 1],
 
 ## Argumento gráfico {.tabset .tabset-fade .tabset-pills}
 
+Para iniciar, se divide el mapa de Barranquilla en 25 cuadrantes, si el patrón fuera homogéneo se esperaría que el número de accidentes en cada uno de las subsecciones de la ciudad contenga aproximadamente la misma cantidad de accidentes.
+
 ### Conteos 2019
 
 ```{r}
 qc_2019 <- quadratcount(datos_2019, nx = 5, ny = 5)
-plot(qc_2019)
+plot(qc_2019, main = "Accidentes en 2019")
 ```
 
 ### Conteos 2020
 
 ```{r}
 qc_2020 <- quadratcount(datos_2020, nx = 5, ny = 5)
-plot(qc_2020)
+plot(qc_2020, main = "Accidentes en 2020")
 ```
 
 ### Conteos 2021
 
 ```{r}
 qc_2021 <- quadratcount(datos_2021, nx = 5, ny = 5)
-plot(qc_2021)
+plot(qc_2021, main = "Accidentes en 2021")
 ```
 
+# Observaciones  {.unlisted .unnumbered}
+
+En todos los años se aprecia que hay una gran discrepancia entre el número de accidentes por sectores. Claramente al este de la ciudad el número de accidentes es mayor respecto al oeste lo cual es una fuerte señal de que el patrón puntual en cuestión es de naturaleza inhomogénea.
+
 ## Pruebas $\chi^2$ {.tabset .tabset-fade .tabset-pills}
+
+Adicional a los conteos del número de accidentes en cada uno de los sectores definidos previamente, se usa la prubea $\chi^2$ para contrastar:
+
+$$
+\begin{cases}
+H_0: \text{La intensidad es constante} \\
+H_1: \text{La intensidad no es constante}
+\end{cases}
+$$
+A continuación se presentan los resultados obtenidos
 
 ### Accidentes en 2019
 
@@ -176,6 +193,10 @@ quadrat.test(qc_2020)
 ```{r warning = F}
 quadrat.test(qc_2021)
 ```
+
+# Conclusiones {.unlisted .unnumbered}
+
+Puesto que en todos los casos se tienen valores - p demasiado pequeños (orden de $10^{-16}$) se rechaza la hipótesis de homogeneidad de intensidad en todos los casos, por lo tanto se hace necesario estimarla con algún método.
 
 # Mapas de probabilidad {.tabset .tabset-fade .tabset-pills}
 
