@@ -84,7 +84,7 @@ knitr::kable(head(accidentes[["2019"]][, c(1:4, 10)], 10))
 
 ## Accidentes 2019
 
-```{r message=FALSE, warning=FALSE, fig.align='center'}
+```{r ubicaciones, message=FALSE, warning=FALSE, fig.align='center'}
 tmap_mode('view')
 
 tm_shape(bqlla)+
@@ -200,6 +200,10 @@ Puesto que en todos los casos se tienen valores - p demasiado pequeños (orden d
 
 # Mapas de probabilidad {.tabset .tabset-fade .tabset-pills}
 
+A continuación se presentan mapas de probabilidad de accidentalidad en los años considerados al realizar una estimación no parametrica de la función de intensidad basado en funciones kernel. 
+
+La selección del ancho de banda se puede escoger de muchas maneras y existen multiples métodos para calcularlos. Luego de usar diferentes propuestas para el calculo de este y probar con valores empíricos se llego a que un valor razonable para el mismo es 350 pues captura la concentración de accidentes de forma plausible.
+
 ## Año 2019
 
 ```{r}
@@ -217,3 +221,31 @@ graph_ppp(datos_2020, 350, "Año 2020")
 ```{r}
 graph_ppp(datos_2021, 350, "Año 2021")
 ```
+
+# Estimación de propiedad de primer orden usando modelos log-lineales
+
+Previamente se verifico que el número de accidentes en la ciudad tiene intensidad inhomogénea, en esta sección el propósito es estimar dicha función usando modelos log-lineales los cuales son de la forma
+
+$$
+log \ \lambda_\theta (u) = \theta \cdot S(u) 
+$$
+
+donde $S(u)$ es una función vectorial de valor real evaluada en alguna ubicación $u$. 
+
+Para ajustar estos modelos en R, se usan la función `ppm()` del paquete `spatstat` la cual recibo como primer argumento un objeto de la clase `ppp` y como segundo una formula.
+ 
+```{r}
+# Rescalando los objetos ppp para ajustar los modelos
+log_lin_2019 <- ppm(datos_2019, ~ x + y)
+```
+
+
+
+
+
+
+
+
+
+
+
