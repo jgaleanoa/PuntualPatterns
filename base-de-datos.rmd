@@ -31,8 +31,6 @@ La problemática en cuestión tiene la complicación de ser algo de naturaleza a
 
 Debido a que se está trabajando la ocurrencia de accidentes en una ciudad de interés, la distribución Poisson y los procesos puntuales Poisson resultan ser una herramienta adecuada para tratar de explicar el fenómeno.
 
-El estudio de accidentalidad se hará en los años 2019, 2020 y 2021 con el propósito de ver como se comporta la accidentalidad prepandemia, pandemia y postpandemia.
-
 # Obtención de la base de datos
 
 Una vez presentado el fenómeno que se trabajará, se selecciona la ciudad de Barranquilla para realizar el estudio. 
@@ -43,7 +41,7 @@ Los datos se extrajeron de la página web GOV.CO la cual tiene diferentes bases 
 accidentes <- read.socrata("https://www.datos.gov.co/resource/yb9r-2dsi.json") %>%
     mutate(fecha = ymd(fecha_accidente)) %>%
     select(12, 6:8) %>%
-    filter(year(fecha) > 2018 & year(fecha) < 2022)
+    filter(year(fecha) == 2021)
 knitr::kable(head(accidentes, 10),
              col.names = c("Fecha", "Gravedad del accidentes",
                            "Clase de accidentes", "Sitio accidente"))
@@ -54,64 +52,43 @@ knitr::kable(head(accidentes, 10),
 Se hace necesario realizarle unos ajustes a la base de datos considerada puesto que está no incluye las ubicaciones exactas de los accidentes ya sea en longitud - latitud o proyección UTM, para dicho propósito se usa la función `geo()` del paquete `tidygeocoder` para convertir las direcciones de los accidentes en coordenadas de longitud - latitud. 
 
 ```{r eval=FALSE, include=TRUE}
+# NO CORRER ESTE CHUNK
 direcciones <- paste(accidentes$sitio_exacto_accidente, ", Barranquilla, Colombia", sep = "")
 localizaciones <- geo(address = direcciones, method = "arcgis")
 write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 ```
 
-Luego de realizar obtener las coordenadas en longitud - latitud, se usan múltiples funciones del paquete `sf` para obtener las respectivas ubicaciones en formato UTM obteniendose lo siguiente:
+Luego de realizar obtener las coordenadas en longitud - latitud, se usan múltiples funciones del paquete `sf` para obtener las respectivas ubicaciones en formato UTM obteniéndose lo siguiente:
 
 ```{r message=FALSE, warning=FALSE}
 bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
-    filter(shapeName == "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*")%>%
+    filter(shapeName ==
+             "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*") %>%
     st_transform(crs = 3857)
 
 coordenadas <- read.csv("accidentes.csv")
-coordenadas <- cbind(accidentes, coordenadas[, 2:3]) %>%
-                st_as_sf(coords = c('long', 'lat')) %>%
-                st_set_crs(value = 4326) %>%
-                st_transform(crs = 3857) %>%
-                st_intersection(bqlla)
 
-accidentes <- list()
-for(i in 2019:2021){
-  accidentes[[as.character(i)]] <- filter(coordenadas, year(fecha) == i & month(fecha) > 3)
-}
-knitr::kable(head(accidentes[["2019"]][, c(1:4, 10)], 10))
+# Se toman 1as primeras 4700 filas para no tener que regenerar el csv
+# de localizaciones
+accidentes_sf <- cbind(accidentes, coordenadas[8927:13626, 2:3]) %>%
+  st_as_sf(coords = c('long', 'lat')) %>%
+  st_set_crs(value = 4326) %>%
+  st_transform(crs = 3857) %>%
+  st_intersection(bqlla) %>% 
+  filter(gravedad_accidente == "Con heridos") %>% 
+  select(-fecha, -gravedad_accidente)
+
+knitr::kable(head(accidentes_sf[, c(1:2, 8)], 10))
 ```
 
-# Gráfico de las localizaciones {.tabset .tabset-fade .tabset-pills}
-
-## Accidentes 2019
+# Gráfico de las localizaciones 
 
 ```{r ubicaciones, message=FALSE, warning=FALSE, fig.align='center'}
 tmap_mode('view')
 
 tm_shape(bqlla)+
   tm_polygons(alpha = 0.3, border.alpha = 0.7)+
-  tm_shape(shp = accidentes[['2019']])+
-  tm_dots(size = 0.01)
-```
-
-## Accidentes 2020
-
-```{r message=FALSE, warning=FALSE, fig.align='center'}
-tmap_mode('view')
-
-tm_shape(bqlla)+
-  tm_polygons(alpha = 0.3, border.alpha = 0.7)+
-  tm_shape(shp = accidentes[['2020']])+
-  tm_dots(size = 0.01)
-```
-
-## Accidentes 2021
-
-```{r message=FALSE, warning=FALSE, fig.align='center'}
-tmap_mode('view')
-
-tm_shape(bqlla)+
-  tm_polygons(alpha = 0.3, border.alpha = 0.7)+
-  tm_shape(shp = accidentes[['2021']])+
+  tm_shape(shp = accidentes_sf)+
   tm_dots(size = 0.01)
 ```
 
@@ -120,17 +97,9 @@ tm_shape(bqlla)+
 Uno de los parámetros críticos al momento de modelar un patrón puntual es la intensidad la cual puede ser constante (homogénea) o variable (inhomogénea), por lo tanto es importante iniciar el análisis con una prueba de homogeneidad de la intensidad.
 
 ```{r message=FALSE, warning=FALSE, fig.height=8}
-# Guardando datos por anio
-datos_2019 <- ppp(x = st_coordinates(accidentes[[1]])[, 1],
-             y = st_coordinates(accidentes[[1]])[, 2],
-             window = as.owin(W = bqlla))
-
-datos_2020 <- ppp(x = st_coordinates(accidentes[[2]])[, 1],
-             y = st_coordinates(accidentes[[2]])[, 2],
-             window = as.owin(W = bqlla))
-
-datos_2021 <- ppp(x = st_coordinates(accidentes[[3]])[, 1],
-             y = st_coordinates(accidentes[[3]])[, 2],
+# Definiendo el patron puntual de los datos
+datos_ppp <- ppp(x = st_coordinates(accidentes_sf)[, 1],
+             y = st_coordinates(accidentes_sf)[, 2],
              window = as.owin(W = bqlla))
 ```
 
@@ -138,34 +107,16 @@ datos_2021 <- ppp(x = st_coordinates(accidentes[[3]])[, 1],
 
 Para iniciar, se divide el mapa de Barranquilla en 25 cuadrantes, si el patrón fuera homogéneo se esperaría que el número de accidentes en cada uno de las subsecciones de la ciudad contenga aproximadamente la misma cantidad de accidentes.
 
-### Conteos 2019
-
 ```{r}
-qc_2019 <- quadratcount(datos_2019, nx = 5, ny = 5)
-plot(qc_2019, main = "Accidentes en 2019")
+qc_datos <- quadratcount(datos_ppp, nx = 5, ny = 5)
+plot(qc_datos, main = "Accidentes en 2021")
 ```
 
-### Conteos 2020
+Se aprecia que existe discrepancia entre el número de accidentes por sectores. Claramente al este de la ciudad el número de accidentes es mayor respecto al oeste lo cual es señal de que el patrón puntual en cuestión es de naturaleza inhomogénea.
 
-```{r}
-qc_2020 <- quadratcount(datos_2020, nx = 5, ny = 5)
-plot(qc_2020, main = "Accidentes en 2020")
-```
+## Prueba $\chi^2$ {.tabset .tabset-fade .tabset-pills}
 
-### Conteos 2021
-
-```{r}
-qc_2021 <- quadratcount(datos_2021, nx = 5, ny = 5)
-plot(qc_2021, main = "Accidentes en 2021")
-```
-
-# Observaciones  {.unlisted .unnumbered}
-
-En todos los años se aprecia que hay una gran discrepancia entre el número de accidentes por sectores. Claramente al este de la ciudad el número de accidentes es mayor respecto al oeste lo cual es una fuerte señal de que el patrón puntual en cuestión es de naturaleza inhomogénea.
-
-## Pruebas $\chi^2$ {.tabset .tabset-fade .tabset-pills}
-
-Adicional a los conteos del número de accidentes en cada uno de los sectores definidos previamente, se usa la prubea $\chi^2$ para contrastar:
+Adicional a los conteos del número de accidentes en cada uno de los sectores definidos previamente, se usa la prueba $\chi^2$ para contrastar:
 
 $$
 \begin{cases}
@@ -173,58 +124,35 @@ H_0: \text{La intensidad es constante} \\
 H_1: \text{La intensidad no es constante}
 \end{cases}
 $$
-A continuación se presentan los resultados obtenidos
-
-### Accidentes en 2019
+A continuación se muestra el resultado obtenido
 
 ```{r warning = F}
-quadrat.test(qc_2019)
+quadrat.test(qc_datos)
 ```
 
+Puesto que se tiene un valor - p demasiado pequeño (orden de $10^{-16}$) se rechaza la hipótesis de homogeneidad de intensidad, es decir, la intensidad puede ser modelada mediante una relación funcional $\lambda(x,y)$ y se hace necesario estimarla con algún método ya sea paramétrico o no paramétrico como se vera más adelante.
 
-### Accidentes en 2020
+# Estimación de propiedades de primer orden
 
-```{r warning = F}
-quadrat.test(qc_2020)
-```
+Previamente se verifico que el número de accidentes en la ciudad tiene intensidad inhomogénea, en esta sección el propósito es estimar dicha función ya sea con metodología paramétrica y no paramética
 
-### Accidentes en 2021
+# No paramétrica {.tabset .tabset-fade .tabset-pills}
 
-```{r warning = F}
-quadrat.test(qc_2021)
-```
+A continuación se presentan mapas de probabilidad de accidentalidad al realizar una estimación no paramétrica de la función de intensidad basado en funciones kernel los cuales son de la forma:
 
-# Conclusiones {.unlisted .unnumbered}
+$$
+\hat{\lambda}(x) = \frac{1}{h^2} \sum_{i = 1}^{n} \frac{\kappa\left(\frac{||x-x_i||}{h}\right)}{q(||x||)}
+$$
 
-Puesto que en todos los casos se tienen valores - p demasiado pequeños (orden de $10^{-16}$) se rechaza la hipótesis de homogeneidad de intensidad en todos los casos, por lo tanto se hace necesario estimarla con algún método.
-
-# Mapas de probabilidad {.tabset .tabset-fade .tabset-pills}
-
-A continuación se presentan mapas de probabilidad de accidentalidad en los años considerados al realizar una estimación no parametrica de la función de intensidad basado en funciones kernel. 
-
-La selección del ancho de banda se puede escoger de muchas maneras y existen multiples métodos para calcularlos. Luego de usar diferentes propuestas para el calculo de este y probar con valores empíricos se llego a que un valor razonable para el mismo es 350 pues captura la concentración de accidentes de forma plausible.
-
-## Año 2019
+La selección del ancho de banda se puede escoger de muchas maneras y existen múltiples métodos para calcularlos. Luego de usar diferentes propuestas para el calculo de este y probar con valores empíricos se llego a que un valor razonable para el mismo es 350 pues captura la concentración de accidentes de forma plausible.
 
 ```{r}
-graph_ppp(datos_2019, 350, "Año 2019")
-```
-
-## Año 2020
-
-```{r}
-graph_ppp(datos_2020, 350, "Año 2020")
-```
-
-## Año 2021
-
-```{r}
-graph_ppp(datos_2021, 350, "Año 2021")
+graph_ppp(datos_ppp, 550, "Año 2021")
 ```
 
 # Estimación de propiedad de primer orden usando modelos log-lineales
 
-Previamente se verifico que el número de accidentes en la ciudad tiene intensidad inhomogénea, en esta sección el propósito es estimar dicha función usando modelos log-lineales los cuales son de la forma
+usando modelos log-lineales los cuales son de la forma
 
 $$
 log \ \lambda_\theta (u) = \theta \cdot S(u) 
