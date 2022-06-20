@@ -103,7 +103,7 @@ datos_ppp <- ppp(x = st_coordinates(accidentes_sf)[, 1],
              window = as.owin(W = bqlla))
 ```
 
-## Argumento gráfico {.tabset .tabset-fade .tabset-pills}
+## Argumento gráfico 
 
 Para iniciar, se divide el mapa de Barranquilla en 25 cuadrantes, si el patrón fuera homogéneo se esperaría que el número de accidentes en cada uno de las subsecciones de la ciudad contenga aproximadamente la misma cantidad de accidentes.
 
@@ -114,7 +114,7 @@ plot(qc_datos, main = "Accidentes en 2021")
 
 Se aprecia que existe discrepancia entre el número de accidentes por sectores. Claramente al este de la ciudad el número de accidentes es mayor respecto al oeste lo cual es señal de que el patrón puntual en cuestión es de naturaleza inhomogénea.
 
-## Prueba $\chi^2$ {.tabset .tabset-fade .tabset-pills}
+## Prueba $\chi^2$
 
 Adicional a los conteos del número de accidentes en cada uno de los sectores definidos previamente, se usa la prueba $\chi^2$ para contrastar:
 
@@ -124,6 +124,7 @@ H_0: \text{La intensidad es constante} \\
 H_1: \text{La intensidad no es constante}
 \end{cases}
 $$
+
 A continuación se muestra el resultado obtenido
 
 ```{r warning = F}
@@ -144,39 +145,30 @@ $$
 \hat{\lambda}(x) = \frac{1}{h^2} \sum_{i = 1}^{n} \frac{\kappa\left(\frac{||x-x_i||}{h}\right)}{q(||x||)}
 $$
 
-La selección del ancho de banda se puede escoger de muchas maneras y existen múltiples métodos para calcularlos. Luego de usar diferentes propuestas para el calculo de este y probar con valores empíricos se llego a que un valor razonable para el mismo es 350 pues captura la concentración de accidentes de forma plausible.
+La selección del ancho de banda se puede escoger de muchas maneras y existen múltiples métodos para calcularlos.
 
 ```{r}
 graph_ppp(datos_ppp, 550, "Año 2021")
 ```
 
-# Estimación de propiedad de primer orden usando modelos log-lineales
+# Modelos log-lineales {.tabset .tabset-fade .tabset-pills}
 
-usando modelos log-lineales los cuales son de la forma
+Otra posible solución para estimar la función de intensidad es mediante modelos log - lineales los cuales son de la forma
 
 $$
-log \ \lambda_\theta (u) = \theta \cdot S(u) 
+log \ \lambda (u) = \theta \cdot S(u) 
 $$
 
-donde $S(u)$ es una función vectorial de valor real evaluada en alguna ubicación $u$. 
+donde $S(u)$ es una función vectorial de valor real evaluada en alguna ubicación $u = (x, y)$. 
 
 Para ajustar estos modelos en R, se usan la función `ppm()` del paquete `spatstat` la cual recibe como primer argumento un objeto de la clase `ppp` y como segundo una formula.
 
-El ajuste de dichos es modelos es sensible a la escala de medición de las ubicaciones; debido a que las ubicaciones se encuentran en metros (los cuales son números muy grandes) es necesario cambiar la escala de medición por una más "pequeña" para evitar problemas de singularidad matricial por lo que se convierten los metros en kilometros.
+El ajuste de dichos es modelos es sensible a la escala de medición de las ubicaciones; debido a que las ubicaciones se encuentran en metros (los cuales son números muy grandes) es necesario cambiar la escala de medición por una más "pequeña" para evitar problemas de singularidad matricial por lo que se convierten los metros en kilómetros.
  
 ```{r rescalando-datos}
 # Rescalando los objetos ppp para ajustar los modelos
-# Ano 2019
-datos_2019 <- rescale(datos_2019, 1000)
-unitname(datos_2019) <- c("km", "kilometers")
-
-# Ano 2020
-datos_2020 <- rescale(datos_2020, 1000)
-unitname(datos_2020) <- c("km", "kilometers")
-
-# Ano 2021
-datos_2021 <- rescale(datos_2021, 1000)
-unitname(datos_2021) <- c("km", "kilometers") 
+datos_ppp_km <- rescale(datos_ppp, 1000)
+unitname(datos_ppp_km) <- c("km", "kilometers")
 ```
 
 Luego de reescalar las ubicaciones se ajustan algunos modelos log-lineales.
@@ -184,10 +176,159 @@ Luego de reescalar las ubicaciones se ajustan algunos modelos log-lineales.
 ```{r warning=F}
 # Ajuste de modelos
 # Tendencia lineal en x e y
-log_lin_2019 <- ppm(datos_2019, ~ x + y)
-log_lin_2020 <- ppm(datos_2020, ~ x + y)
-log_lin_2021 <- ppm(datos_2021, ~ x + y)
+log_linx <- ppm(datos_ppp_km, ~ x)
+log_liny <- ppm(datos_ppp_km, ~ y)
+log_lin_xy <- ppm(datos_ppp_km, ~ x + y)
+
+## Tendencia cuadratica
+log_lin_x_cuad <- ppm(datos_ppp_km, ~ x + I(x^2))
+log_lin_y_cuad <- ppm(datos_ppp_km, ~ y + I(y^2))
+log_lin_xy_cuad <- ppm(datos_ppp_km, ~ x + I(x^2) + y + I(y^2))
+
+# Tendencia cuadratica en x pero no en y
+log_lin_xcuad_y <- ppm(datos_ppp_km, ~ x + I(x^2) + y)
+log_lin_inter <- ppm(datos_ppp_km, ~ x*y)
+log_lin_cuadx_inter <- ppm(datos_ppp_km,  ~ x*y + I(x^2) + I(y^2))
 ```
+
+## Lineal en $x$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_1x
+$$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_linx), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_linx, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Lineal en $y$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_2 y
+$$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_liny), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_liny, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Lineal en $x$ e $y$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_1 x + \beta_2 y
+$$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_xy), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_xy, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Cuadrático en $x$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_1 x + \beta_{11} x^2
+$$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_x_cuad), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_x_cuad, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Cuadrático en $y$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_2 y + \beta_{22} y^2
+$$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_y_cuad), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_y_cuad, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Cuadrático en $x$ e $y$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_1 x + \beta_2 y + \beta_{11} x^2 + \beta_{22} y^2
+$$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_xy_cuad), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_xy_cuad, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Cuadrático en $x$ lineal en $y$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_1 x  + \beta_{11} x^2 + \beta_2 y
+$$
+
+```{r}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_xcuad_y), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_xcuad_y, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+## Interacción entre $x$ e $y$
+
+$$
+\log\ \lambda(x,y) = \beta_0 + \beta_1 x + \beta_2 y + \beta_{12} xy
+$$
+
+```{r}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_inter), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_inter, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+
+## Cuadrático con interacción en $x$ e $y$
+
+```{r results="hide"}
+par(mfrow = c(1, 2)) 
+plot(predict(log_lin_cuadx_inter), main = "Número de accidentes")
+plot(datos_ppp_km, add = T, cex = 0.5)
+diagnose.ppm(log_lin_cuadx_inter, which = "smooth", 
+             main = "Residuales suavizados")
+```
+
+# Observaciones {.unlisted .unnumbered}
+
+* Los modelos lineales en $x$, $(x, \ y)$ e interacción entre $x$ e $y$ presentan comportamientos muy similares lo cual sugiere que de escoger alguno de ellos, se debería seleccionar el lineal en $x$ (longitud) dado que es el más parsimonioso.
+* Todos los modelos que únicamente modelan tendencia en función de la coordenada en $y$ (latitud), presentan los ajustes más pobres porque presentan la escala de residuales más alta además de no capturar la tendencia del patrón puntual.
+* Los modelos que consideran tendencia tanto en $x$ como en $y$ presentan mejores al tener una menor escala en los residuales y capturar mejor la tendencia de accidentes en la ciudad.
+* El modelo que mejor se ajusta es el cuadrático en $x$ e $y$ con interacción al presentar la menor escala de residuales de todos los considerados. 
+
+
+
+
+
+
+
+
+
 
 
 
