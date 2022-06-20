@@ -16,7 +16,6 @@ library(RSocrata)
 library(tidyverse)
 library(lubridate)
 library(tidygeocoder)
-library(rgeoboundaries)
 library(sf)
 library(tmap)
 library(spatstat)
@@ -61,10 +60,8 @@ write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 Luego de realizar obtener las coordenadas en longitud - latitud, se usan múltiples funciones del paquete `sf` para obtener las respectivas ubicaciones en formato UTM obteniéndose lo siguiente:
 
 ```{r message=FALSE, warning=FALSE}
-bqlla <- geoboundaries(country = "COLOMBIA", adm_lvl = 2) %>%
-    filter(shapeName ==
-             "DISTRITO ESPECIAL, INDUSTRIAL Y PORTUARIO DE BARR*") %>%
-    st_transform(crs = 3857)
+bqlla <- st_read('bqlla.geojson')%>%
+  st_transform(crs = 3857)
 
 coordenadas <- read.csv("accidentes.csv")
 
@@ -108,7 +105,8 @@ datos_ppp <- ppp(x = st_coordinates(accidentes_sf)[, 1],
 Para iniciar, se divide el mapa de Barranquilla en 25 cuadrantes, si el patrón fuera homogéneo se esperaría que el número de accidentes en cada uno de las subsecciones de la ciudad contenga aproximadamente la misma cantidad de accidentes.
 
 ```{r}
-qc_datos <- quadratcount(datos_ppp, nx = 5, ny = 5)
+ncuadrantes(datos_ppp)
+qc_datos <- quadratcount(datos_ppp, nx = 7, ny = 2)
 plot(qc_datos, main = "Accidentes en 2021")
 ```
 
@@ -144,10 +142,10 @@ $$
 \hat{\lambda}(x) = \frac{1}{h^2} \sum_{i = 1}^{n} \frac{\kappa\left(\frac{||x-x_i||}{h}\right)}{q(||x||)}
 $$
 
-La selección del ancho de banda se puede escoger de muchas maneras y existen múltiples métodos para calcularlos. Luego de usar diferentes propuestas para el calculo de este y probar con valores empíricos se llego a que un valor razonable para el mismo es 350 pues captura la concentración de accidentes de forma plausible.
+El ancho de banda se seleccionó utilizando la función `bw.scott`, la cual está implementada para los problemas que involucra la estimación espacial de la intensidad de puntos observados en redes lineales, como es el caso de los accidentes viales, utilizada en este ejercicio. Además, se analizó el error estandar de las estimaciones de densidad obtenido con esta función comparado con los resultados obtenidos de otras posibles funciones disponibles en el paquete `spatstat` y se encontró que el menor error estandar promedio fue el hallado con la función seleccionada.
 
 ```{r}
-graph_ppp(datos_ppp, 550, "Año 2021")
+graph_ppp(datos_ppp, round(bw.scott(datos_ppp, isotropic = T), 2), "Año 2021")
 ```
 
 # Estimación de propiedad de primer orden usando modelos log-lineales
