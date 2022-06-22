@@ -330,7 +330,13 @@ diagnose.ppm(log_lin_cuad_inter, which = "smooth",
 Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de primer orden (intensidad), ahora interesa estimar las propiedades de segundo orden las cuales son utiles para determinar la naturaleza del patrón puntual de interés: completamente aleatorio, inhibitorio o agregado.
 
 ```{r}
+# patron puntual no parametrico usado previamente
+ppp_np <- density.ppp(datos_ppp, sigma = bw.scott, isotropic = T)
 
+# Envolventes con funcion K
+# env_np <- envelope(datos_ppp, Kinhom, lambda = ppp_np, nsim = 39)
+# saveRDS(env_np, "funciones_segundo_orden/K_np.Rds")
+K_np <- readRDS("funciones_segundo_orden/K_np.Rds")
 ```
 
 
