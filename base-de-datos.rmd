@@ -189,7 +189,7 @@ log_lin_xy_cuad <- ppm(datos_ppp_km, ~ x + I(x^2) + y + I(y^2))
 # Tendencia cuadratica en x pero no en y
 log_lin_xcuad_y <- ppm(datos_ppp_km, ~ x + I(x^2) + y)
 log_lin_inter <- ppm(datos_ppp_km, ~ x*y)
-log_lin_cuadx_inter <- ppm(datos_ppp_km,  ~ x*y + I(x^2) + I(y^2))
+log_lin_cuad_inter <- ppm(datos_ppp_km,  ~ x*y + I(x^2) + I(y^2))
 ```
 
 ## Lineal en $x$
@@ -282,7 +282,7 @@ $$
 \log\ \lambda(x,y) = \beta_0 + \beta_1 x  + \beta_{11} x^2 + \beta_2 y
 $$
 
-```{r}
+```{r results="hide"}
 par(mfrow = c(1, 2)) 
 plot(predict(log_lin_xcuad_y), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
@@ -296,7 +296,7 @@ $$
 \log\ \lambda(x,y) = \beta_0 + \beta_1 x + \beta_2 y + \beta_{12} xy
 $$
 
-```{r}
+```{r results="hide"}
 par(mfrow = c(1, 2)) 
 plot(predict(log_lin_inter), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
@@ -312,9 +312,9 @@ $$
 
 ```{r results="hide"}
 par(mfrow = c(1, 2)) 
-plot(predict(log_lin_cuadx_inter), main = "Número de accidentes")
+plot(predict(log_lin_cuad_inter), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
-diagnose.ppm(log_lin_cuadx_inter, which = "smooth", 
+diagnose.ppm(log_lin_cuad_inter, which = "smooth", 
              main = "Residuales suavizados")
 ```
 
@@ -324,6 +324,15 @@ diagnose.ppm(log_lin_cuadx_inter, which = "smooth",
 * Todos los modelos que únicamente modelan tendencia en función de la coordenada en $y$ (latitud), presentan los ajustes más pobres porque presentan la escala de residuales más alta además de no capturar la tendencia del patrón puntual.
 * Los modelos que consideran tendencia tanto en $x$ como en $y$ presentan mejores al tener una menor escala en los residuales y capturar mejor la tendencia de accidentes en la ciudad.
 * El modelo que mejor se ajusta es el cuadrático en $x$ e $y$ con interacción al presentar la menor escala de residuales de todos los considerados. 
+
+# Propiedades de segundo orden
+
+Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de primer orden (intensidad), ahora interesa estimar las propiedades de segundo orden las cuales son utiles para determinar la naturaleza del patrón puntual de interés: completamente aleatorio, inhibitorio o agregado.
+
+```{r}
+
+```
+
 
 
 
