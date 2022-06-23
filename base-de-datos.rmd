@@ -325,7 +325,7 @@ diagnose.ppm(log_lin_cuad_inter, which = "smooth",
 * Los modelos que consideran tendencia tanto en $x$ como en $y$ presentan mejores al tener una menor escala en los residuales y capturar mejor la tendencia de accidentes en la ciudad.
 * El modelo que mejor se ajusta es el cuadrático en $x$ e $y$ con interacción al presentar la menor escala de residuales de todos los considerados. 
 
-# Propiedades de segundo orden
+# Propiedades de segundo orden {.tabset .tabset-fade .tabset-pills}
 
 Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de primer orden (intensidad), ahora interesa estimar las propiedades de segundo orden las cuales son utiles para determinar la naturaleza del patrón puntual de interés: completamente aleatorio, inhibitorio o agregado.
 
@@ -333,42 +333,116 @@ Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de 
 # patron puntual no parametrico usado previamente
 ppp_np <- density.ppp(datos_ppp, sigma = bw.scott,
                       isotropic = T)
-
-# Envolventes con funcion K
-# env_np <- envelope(datos_ppp, Kinhom, lambda = ppp_np, nsim = 39)
-
-# Wrapper para modelo parametrico
-# wrapper_param <- function(x, y) {
-#   predict(log_lin_cuad_inter, 
-#           locations = data.frame(x, y),
-#           type = "intensity")
-# }
-# 
-# env_param <- envelope(datos_ppp_km, Kinhom,
-#                       lambda = wrapper_param, nsim = 39)
-# saveRDS(env_np, "funciones_segundo_orden/K_np.Rds")
-# saveRDS(env_param, "funciones_segundo_orden/K_param")
-K_np <- readRDS("funciones_segundo_orden/K_np.Rds")
-K_param <- readRDS("funciones_segundo_orden/K_param")
 ```
 
+## Función K
 
+```{r}
+# Implementacion manual de envolventes
+# K inhomogena no parametrica
+# Kmat_np <- matrix(0, nrow = 513, ncol = 99)
+# radios <- seq(0, 3450, length.out = 513)
+# 
+# for(i in 1:99){
+#   temp <- rpoispp(ppp_np)
+#   temp <- Kinhom(temp, r = radios, lambda = ppp_np)
+#   Kmat_np[, i] <- temp$bord.modif
+# }
+# Knp <- Kinhom(datos_ppp, lambda = ppp_np, r = radios)
+# upperK <- apply(Kmat_np, 1, max)
+# lowerK <- apply(Kmat_np, 1, min)
+# 
+# Knp_env_data <- data.frame(upper = upperK, 
+#                            lower = lowerK,
+#                            observed = Knp$bord.modif,
+#                            theo = Knp$theo, 
+#                            r = radios)
+# saveRDS(Knp_env_data, "funciones_segundo_orden/Knp_env_data.Rds")
 
+Knp_env_data <- readRDS("funciones_segundo_orden/Knp_env_data.Rds")
 
+# Gráficando las curvas
+# k_aux <- data.frame(r = rep(Knp_env_data$r, 2),
+#                     values = c(Knp_env_data$theo,
+#                                Knp_env_data$observed),
+#                     kind = rep(c("Teórica", "Estimada"),
+#                                each = length(Knp_env_data$r)))
+# 
+# Kgg <- ggplot(k_aux, aes(r, y = values, color = kind)) +
+#   geom_ribbon(aes(ymin = rep(Knp_env_data$lower, 2),
+#                   ymax = rep(Knp_env_data$upper, 2)),
+#               color = "white", fill = "grey70") +
+#   geom_path(aes(linetype = kind)) +
+#   labs(x = "r [metros]",
+#        y = "K", 
+#        title = "Envolventes para la función K",
+#        color = "" ,
+#        linetype = "") +
+#   theme_minimal() +
+#   theme(plot.title = element_text(hjust = 0.5)) +
+#   scale_color_manual(values = c("black", "red"))
+# 
+# Kggplotly <- plotly::ggplotly(Kgg)
+# saveRDS(Kggplotly, "Kggplotly.Rds")
 
+Kggplotly <- readRDS("Kggplotly.Rds")
+Kggplotly
+```
 
+## Función g
 
+```{r}
+# Implementacion manual de envolventes
+# g inhomogena no parametrica
+# gnp <- pcfinhom(datos_ppp, lambda = ppp_np,
+#                  r = radios)
+# 
+# gmat <- matrix(0, nrow = 513, ncol = 99)
+# 
+# for(i in 1:99){
+#   temp <- rpoispp(ppp_np)
+#   temp <- pcfinhom(temp, r = radios, lambda = ppp_np)
+#   gmat[, i] <- temp$trans
+# }
+# 
+# upperg <- apply(gmat, 1, max)
+# lowerg <- apply(gmat, 1, min)
+# 
+# gnp_env_data <- data.frame(r = radios, 
+#                            observed = gnp$trans,
+#                            lower = lowerg, 
+#                            upper = upperg, 
+#                            theo = 1)
+# saveRDS(gnp_env_data, "funciones_segundo_orden/gnp_env_data.Rds")
 
+gnp_env_data <- readRDS("funciones_segundo_orden/gnp_env_data.Rds")
 
+# Gráficando las curvas
+# g_aux <- data.frame(r = rep(gnp_env_data$r, 2),
+#                     values = c(gnp_env_data$theo,
+#                                gnp_env_data$observed),
+#                     kind = rep(c("Teórica", "Estimada"),
+#                                each = length(gnp_env_data$r)))
+# 
+# g_gg <- ggplot(g_aux, aes(r, y = values, color = kind)) +
+#   geom_ribbon(aes(ymin = rep(gnp_env_data$lower, 2),
+#                   ymax = rep(gnp_env_data$upper, 2)),
+#               color = "white", fill = "grey70") +
+#   geom_path(aes(linetype = kind)) +
+#   labs(x = "r [metros]",
+#        y = "g", 
+#        title = "Envolventes para la función g",
+#        color = "" ,
+#        linetype = "") +
+#   ylim(c(0, 4.4)) +
+#   theme_minimal() +
+#   theme(plot.title = element_text(hjust = 0.5)) +
+#   scale_color_manual(values = c("black", "red"))
+# 
+# g_plotly <- plotly::ggplotly(g_gg)
+# saveRDS(g_plotly, "g_plotly.Rds")
 
-
-
-
-
-
-
-
-
-
-
+g_plotly <- readRDS("g_plotly.Rds")
+g_plotly
+```
 
