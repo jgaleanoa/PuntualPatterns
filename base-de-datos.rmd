@@ -24,9 +24,9 @@ source("Funciones_propias_ppp.R", encoding = "UTF-8")
 
 # Contextualización
 
-La accidentalidad es uno de los problemas más comunes en el planeta provocando perdidas que pueden ir desde materiales hasta la vida misma, por lo que es de particular interés tratar de comprender como se comporta este fenómeno para evitar ser victimas de él. 
+La accidentalidad es uno de los problemas más comunes en el planeta provocando perdidas que pueden ir desde materiales hasta la vida misma, por lo que es de particular interés tratar de comprender como se comporta este fenómeno para tomar decisiones que puedan disminuir el grado de ocurrencia. 
 
-La problemática en cuestión tiene la complicación de ser algo de naturaleza aleatoria, sin embargo esto no quiere decir que no exista alguna forma de controlarla pues la experiencia ha mostrado que las diferentes ciudades tienen lugares con mayor concentración de accidentes que otras ubicaciones dentro de la misma ciudad.
+La problemática en cuestión tiene la característica de naturaleza aleatoria, sin embargo esto no quiere decir que no exista alguna forma de controlarla pues la experiencia ha mostrado que las diferentes ciudades tienen lugares con mayor concentración de accidentes que otras ubicaciones dentro de la misma ciudad a causa de la congestión vehicular.
 
 Debido a que se está trabajando la ocurrencia de accidentes en una ciudad de interés, la distribución Poisson y los procesos puntuales Poisson resultan ser una herramienta adecuada para tratar de explicar el fenómeno.
 
@@ -34,7 +34,7 @@ Debido a que se está trabajando la ocurrencia de accidentes en una ciudad de in
 
 Una vez presentado el fenómeno que se trabajará, se selecciona la ciudad de Barranquilla para realizar el estudio. 
 
-Los datos se extrajeron de la página web GOV.CO la cual tiene diferentes bases da datos de Colombia abiertas al público. (<a href="https://www.datos.gov.co/Transporte/Accidentalidad-en-Barranquilla/yb9r-2dsi/data"> Accidentalidad en Barranquilla</a>). La base de datos contiene una gran cantidad de variables, sin embargo solo se escogen aquellas de interés para el patrón puntual. La estructura de los datos es presentada a continuación:
+Los datos se extrajeron de la página de datos abiertos de Colombia. (<a href="https://www.datos.gov.co/Transporte/Accidentalidad-en-Barranquilla/yb9r-2dsi/data"> Accidentalidad en Barranquilla</a>). La base de datos contiene una gran cantidad de variables, sin embargo solo se escogen aquellas de interés para el patrón puntual como el sitio accidente (dirección), fecha de ocurrencia y la gravedad del accidente. La estructura de los datos es presentada a continuación:
 
 ```{r}
 accidentes <- read.socrata("https://www.datos.gov.co/resource/yb9r-2dsi.json") %>%
@@ -57,7 +57,7 @@ localizaciones <- geo(address = direcciones, method = "arcgis")
 write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 ```
 
-Luego de realizar obtener las coordenadas en longitud - latitud, se usan múltiples funciones del paquete `sf` para obtener las respectivas ubicaciones en formato UTM obteniéndose lo siguiente:
+Luego de obtener las coordenadas en longitud - latitud, se realiza una proyección de coordenadas geograficas a planas utilizando las funciones del paquete `sf` y se obtienen los siguientes resultados:
 
 ```{r message=FALSE, warning=FALSE, results="hide"}
 bqlla <- st_read('bqlla.geojson')%>%
@@ -90,6 +90,9 @@ tm_shape(bqlla)+
   tm_shape(shp = accidentes_sf)+
   tm_dots(size = 0.01)
 ```
+Previamente se tenia el mapa de barranquilla donde observamos la existencia de áreas con ningún grado de ocurrencia, se realizo un recorte del mapa para concentrar el análisis en los lugares donde es posible su ocurrencia.
+
+
 
 # Pruebas de homogeneidad en la intensidad
 
@@ -104,7 +107,7 @@ datos_ppp <- ppp(x = st_coordinates(accidentes_sf)[, 1],
 
 ## Argumento gráfico 
 
-Para iniciar, se divide el mapa de Barranquilla en 25 cuadrantes, si el patrón fuera homogéneo se esperaría que el número de accidentes en cada uno de las subsecciones de la ciudad contenga aproximadamente la misma cantidad de accidentes.
+Para iniciar, se divide el mapa de Barranquilla en 14 cuadrantes, si el patrón fuera homogéneo se esperaría que el número de accidentes en cada uno de las subsecciones de la ciudad contenga aproximadamente la misma cantidad de accidentes.
 
 ```{r}
 ncuadrantes(datos_ppp)
@@ -120,8 +123,8 @@ Adicional a los conteos del número de accidentes en cada uno de los sectores de
 
 $$
 \begin{cases}
-H_0: \text{La intensidad es constante} \\
-H_1: \text{La intensidad no es constante}
+H_0: \lambda(u)=\lambda \: \text{La intensidad es constante} \\
+H_1: \lambda(u) \neq \lambda \: \text{La intensidad no es constante}
 \end{cases}
 $$
 
@@ -148,8 +151,10 @@ $$
 El ancho de banda se seleccionó utilizando la función `bw.scott`, la cual está implementada para los problemas que involucra la estimación espacial de la intensidad de puntos observados en redes lineales, como es el caso de los accidentes viales. Además, se analizó el error estándar de las estimaciones de densidad obtenido con esta función comparado con los resultados obtenidos de otras posibles funciones disponibles en el paquete `spatstat` y se encontró que el menor error estándar promedio fue el hallado con la función seleccionada.
 
 ```{r}
+par(mfrow=c(1,1),mar=c(0,0,2,0),cex.main=0.8)
 graph_ppp(datos_ppp, round(bw.scott(datos_ppp, isotropic = T), 2),
           "Año 2021")
+plot(datos_ppp,add=T,cex=0.5)
 ```
 
 # Modelos log-lineales {.tabset .tabset-fade .tabset-pills}
@@ -199,7 +204,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_linx), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_linx, which = "smooth", 
@@ -213,7 +218,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_liny), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_liny, which = "smooth", 
@@ -227,7 +232,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_xy), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_xy, which = "smooth", 
@@ -241,7 +246,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_x_cuad), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_x_cuad, which = "smooth", 
@@ -255,7 +260,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_y_cuad), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_y_cuad, which = "smooth", 
@@ -269,7 +274,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_xy_cuad), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_xy_cuad, which = "smooth", 
@@ -283,7 +288,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_xcuad_y), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_xcuad_y, which = "smooth", 
@@ -297,7 +302,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_inter), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_inter, which = "smooth", 
@@ -311,7 +316,7 @@ $$
 $$
 
 ```{r results="hide"}
-par(mfrow = c(1, 2)) 
+par(mfrow=c(1,2),mar=c(0,1.5,2,0),cex.main=0.8) 
 plot(predict(log_lin_cuad_inter), main = "Número de accidentes")
 plot(datos_ppp_km, add = T, cex = 0.5)
 diagnose.ppm(log_lin_cuad_inter, which = "smooth", 
@@ -322,7 +327,7 @@ diagnose.ppm(log_lin_cuad_inter, which = "smooth",
 
 * Los modelos lineales en $x$, $(x, \ y)$ e interacción entre $x$ e $y$ presentan comportamientos muy similares lo cual sugiere que de escoger alguno de ellos, se debería seleccionar el lineal en $x$ (longitud) dado que es el más parsimonioso.
 * Todos los modelos que únicamente modelan tendencia en función de la coordenada en $y$ (latitud), presentan los ajustes más pobres porque presentan la escala de residuales más alta además de no capturar la tendencia del patrón puntual.
-* Los modelos que consideran tendencia tanto en $x$ como en $y$ presentan mejores al tener una menor escala en los residuales y capturar mejor la tendencia de accidentes en la ciudad.
+* Los modelos que consideran tendencia tanto en $x$ como en $y$ presentan mejoras al tener una menor escala en los residuales y capturar mejor la tendencia de accidentes en la ciudad.
 * El modelo que mejor se ajusta es el cuadrático en $x$ e $y$ con interacción al presentar la menor escala de residuales de todos los considerados. 
 
 # Propiedades de segundo orden
@@ -330,7 +335,10 @@ diagnose.ppm(log_lin_cuad_inter, which = "smooth",
 Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de primer orden (intensidad), ahora interesa estimar las propiedades de segundo orden las cuales son utiles para determinar la naturaleza del patrón puntual de interés: completamente aleatorio, inhibitorio o agregado.
 
 ```{r}
-
+ppp_np<-density.ppp(datos_ppp, sigma=bw.scott,isotropic = T)
+envol_np_pcf<-envelope(datos_ppp,Kinhom,lambda=ppp_np,nsim = 39)
+#saveRDS(envol_np_pcf, file = "funciones_segundo_orden/pcf_np.Rds")
+#plot(envol_np_pcf)
 ```
 
 
