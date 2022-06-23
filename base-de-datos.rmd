@@ -330,6 +330,16 @@ diagnose.ppm(log_lin_cuad_inter, which = "smooth",
 Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de primer orden (intensidad), ahora interesa estimar las propiedades de segundo orden las cuales son utiles para determinar la naturaleza del patrón puntual de interés: completamente aleatorio, inhibitorio o agregado.
 
 ```{r}
+# pair correlation function parametrica
+# wrapper_param <-  function(x, y){
+#   predict(log_lin_cuad_inter, 
+#           locations = data.frame(x, y),
+#           type = "intensity")
+# }
+# 
+# g_param <- envelope(datos_ppp_km, pcfinhom, lambda = wrapper_param)
+# saveRDS(g_param, "funciones_segundo_orden/g_param.Rds")
+g_param <- readRDS("funciones_segundo_orden/g_param.Rds")
 
 ```
 
