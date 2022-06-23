@@ -331,12 +331,25 @@ Luego de realizar ajustes paramétricos y no paramétricos para la propiedad de 
 
 ```{r}
 # patron puntual no parametrico usado previamente
-ppp_np <- density.ppp(datos_ppp, sigma = bw.scott, isotropic = T)
+ppp_np <- density.ppp(datos_ppp, sigma = bw.scott,
+                      isotropic = T)
 
 # Envolventes con funcion K
 # env_np <- envelope(datos_ppp, Kinhom, lambda = ppp_np, nsim = 39)
+
+# Wrapper para modelo parametrico
+# wrapper_param <- function(x, y) {
+#   predict(log_lin_cuad_inter, 
+#           locations = data.frame(x, y),
+#           type = "intensity")
+# }
+# 
+# env_param <- envelope(datos_ppp_km, Kinhom,
+#                       lambda = wrapper_param, nsim = 39)
 # saveRDS(env_np, "funciones_segundo_orden/K_np.Rds")
+# saveRDS(env_param, "funciones_segundo_orden/K_param")
 K_np <- readRDS("funciones_segundo_orden/K_np.Rds")
+K_param <- readRDS("funciones_segundo_orden/K_param")
 ```
 
 
