@@ -59,7 +59,7 @@ write.csv(x = localizaciones, file = "accidentes.csv", row.names = F)
 
 Luego de realizar obtener las coordenadas en longitud - latitud, se usan múltiples funciones del paquete `sf` para obtener las respectivas ubicaciones en formato UTM obteniéndose lo siguiente:
 
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, results="hide"}
 bqlla <- st_read('bqlla.geojson')%>%
   st_transform(crs = 3857)
 
@@ -74,7 +74,9 @@ accidentes_sf <- cbind(accidentes, coordenadas[8927:13626, 2:3]) %>%
   st_intersection(bqlla) %>% 
   filter(gravedad_accidente == "Con heridos") %>% 
   select(-fecha, -gravedad_accidente)
+```
 
+```{r}
 knitr::kable(head(accidentes_sf[, c(1:2, 8)], 10))
 ```
 
@@ -122,6 +124,7 @@ H_0: \text{La intensidad es constante} \\
 H_1: \text{La intensidad no es constante}
 \end{cases}
 $$
+
 A continuación se muestra el resultado obtenido
 
 ```{r warning = F}
@@ -142,10 +145,11 @@ $$
 \hat{\lambda}(x) = \frac{1}{h^2} \sum_{i = 1}^{n} \frac{\kappa\left(\frac{||x-x_i||}{h}\right)}{q(||x||)}
 $$
 
-El ancho de banda se seleccionó utilizando la función `bw.scott`, la cual está implementada para los problemas que involucra la estimación espacial de la intensidad de puntos observados en redes lineales, como es el caso de los accidentes viales, utilizada en este ejercicio. Además, se analizó el error estandar de las estimaciones de densidad obtenido con esta función comparado con los resultados obtenidos de otras posibles funciones disponibles en el paquete `spatstat` y se encontró que el menor error estandar promedio fue el hallado con la función seleccionada.
+El ancho de banda se seleccionó utilizando la función `bw.scott`, la cual está implementada para los problemas que involucra la estimación espacial de la intensidad de puntos observados en redes lineales, como es el caso de los accidentes viales. Además, se analizó el error estándar de las estimaciones de densidad obtenido con esta función comparado con los resultados obtenidos de otras posibles funciones disponibles en el paquete `spatstat` y se encontró que el menor error estándar promedio fue el hallado con la función seleccionada.
 
 ```{r}
-graph_ppp(datos_ppp, round(bw.scott(datos_ppp, isotropic = T), 2), "Año 2021")
+graph_ppp(datos_ppp, round(bw.scott(datos_ppp, isotropic = T), 2),
+          "Año 2021")
 ```
 
 # Estimación de propiedad de primer orden usando modelos log-lineales
@@ -165,16 +169,8 @@ El ajuste de dichos es modelos es sensible a la escala de medición de las ubica
 ```{r rescalando-datos}
 # Rescalando los objetos ppp para ajustar los modelos
 # Ano 2019
-datos_2019 <- rescale(datos_2019, 1000)
-unitname(datos_2019) <- c("km", "kilometers")
-
-# Ano 2020
-datos_2020 <- rescale(datos_2020, 1000)
-unitname(datos_2020) <- c("km", "kilometers")
-
-# Ano 2021
-datos_2021 <- rescale(datos_2021, 1000)
-unitname(datos_2021) <- c("km", "kilometers") 
+datos_ppp <- rescale(datos_ppp, 1000)
+unitname(datos_ppp) <- c("km", "kilometers")
 ```
 
 Luego de reescalar las ubicaciones se ajustan algunos modelos log-lineales.
@@ -182,9 +178,7 @@ Luego de reescalar las ubicaciones se ajustan algunos modelos log-lineales.
 ```{r warning=F}
 # Ajuste de modelos
 # Tendencia lineal en x e y
-log_lin_2019 <- ppm(datos_2019, ~ x + y)
-log_lin_2020 <- ppm(datos_2020, ~ x + y)
-log_lin_2021 <- ppm(datos_2021, ~ x + y)
+log_lin_xy <- ppm(datos_ppp, ~ x + y)
 ```
 
 
